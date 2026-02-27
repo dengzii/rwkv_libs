@@ -6,7 +6,8 @@ project(${PROJECT_NAME} LANGUAGES CXX)
 
 set(rwkv_libs_bundled_libraries
         "${CMAKE_CURRENT_SOURCE_DIR}/rwkv_mobile.dll"
-        "${CMAKE_CURRENT_SOURCE_DIR}/rwkv_mobile-arm64.dll"
-        "${CMAKE_CURRENT_SOURCE_DIR}/libomp140.aarch64.dll"
+#        "${CMAKE_CURRENT_SOURCE_DIR}/rwkv_mobile-arm64.dll"
+#        "${CMAKE_CURRENT_SOURCE_DIR}/libomp140.aarch64.dll"
+        "${CMAKE_CURRENT_SOURCE_DIR}/libcrypto-3-x64.dll"
         PARENT_SCOPE
 )
