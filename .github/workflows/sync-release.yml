@@ -1,0 +1,78 @@
+name: Sync Release from rwkv-mobile
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  sync-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download artifacts from MollySophia/rwkv-mobile
+        run: |
+          mkdir -p artifacts
+
+          echo "Fetching asset list from MollySophia/rwkv-mobile latest release..."
+          gh api repos/MollySophia/rwkv-mobile/releases/tags/latest \
+            --jq '.assets[] | .browser_download_url' > urls.txt
+
+          if [ ! -s urls.txt ]; then
+            echo "No assets found in rwkv-mobile latest release!"
+            exit 1
+          fi
+
+          echo "Assets to download:"
+          cat urls.txt
+
+          while read -r url; do
+            filename=$(basename "$url")
+            echo "Downloading: $filename"
+            curl -fL -o "artifacts/$filename" "$url"
+          done < urls.txt
+
+          echo ""
+          echo "Downloaded files:"
+          ls -lh artifacts/
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Create release for tag ${{ github.ref_name }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --repo "${{ github.repository }}" \
+            --title "${{ github.ref_name }}" \
+            --generate-notes \
+            artifacts/*
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update latest release
+        run: |
+          # Delete existing latest release if present
+          gh release delete latest \
+            --repo "${{ github.repository }}" \
+            --yes 2>/dev/null || true
+
+          # Delete existing latest tag
+          gh api --method DELETE \
+            "repos/${{ github.repository }}/git/refs/tags/latest" \
+            2>/dev/null || true
+
+          # Create new latest tag pointing to the same commit as the pushed tag
+          gh api --method POST "repos/${{ github.repository }}/git/refs" \
+            --field ref="refs/tags/latest" \
+            --field sha="${{ github.sha }}"
+
+          # Create latest release with the same artifacts
+          gh release create latest \
+            --repo "${{ github.repository }}" \
+            --title "Latest" \
+            --notes "Latest release — synced from tag \`${{ github.ref_name }}\` on $(date -u +'%Y-%m-%d %H:%M:%S UTC')" \
+            artifacts/*
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
